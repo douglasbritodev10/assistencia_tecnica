@@ -1,90 +1,91 @@
 import { db, auth } from "./firebase-config.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import { 
-    collection, 
-    query, 
-    orderBy, 
-    getDocs, 
-    deleteDoc, 
-    doc, 
-    onAuthStateChanged 
+    collection, query, orderBy, getDocs, deleteDoc, doc 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// 1. Proteção de Rota: Só permite ver o histórico se estiver logado
-onAuthStateChanged(auth, (user) => {
-    if (!user) {
+// --- AUTH & SAUDAÇÃO ---
+onAuthStateChanged(auth, user => {
+    if (user) {
+        document.getElementById("labelUser").innerText = `Olá, ${user.email.split('@')[0].toUpperCase()}`;
+        listarHistorico();
+    } else {
         window.location.href = "index.html";
     }
 });
 
-// 2. Função Principal: Listar Movimentações
-async function listarHistorico() {
-    const filtro = document.getElementById("filtro")?.value || "Todos";
-    const tabela = document.querySelector("#tabela tbody");
-    
-    if (!tabela) return;
+document.getElementById("btnLogout").onclick = () => signOut(auth).then(() => window.location.href = "index.html");
 
-    tabela.innerHTML = "<tr><td colspan='6'>Carregando movimentações...</td></tr>";
+// --- FUNÇÃO PRINCIPAL ---
+async function listarHistorico() {
+    const filtroData = document.getElementById("filtroData").value; // Formato YYYY-MM-DD
+    const filtroTipo = document.getElementById("filtroTipo").value;
+    const tbody = document.getElementById("corpoTabela");
+    
+    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center'>Carregando registros...</td></tr>";
 
     try {
-        // Busca na coleção 'movimentacoes' que o sistema cria automaticamente no giro
         const q = query(collection(db, "movimentacoes"), orderBy("data", "desc"));
-        const querySnapshot = await getDocs(q);
+        const snap = await getDocs(q);
         
-        tabela.innerHTML = "";
+        tbody.innerHTML = "";
+        let encontrou = false;
 
-        querySnapshot.forEach((d) => {
+        snap.forEach((d) => {
             const h = d.data();
+            const dataObjeto = h.data ? h.data.toDate() : null;
             
-            // Lógica de Filtro (Entrada / Saída / Todos)
-            if (filtro === "Todos" || h.tipo === filtro) {
-                const dataFormatada = h.data ? h.data.toDate().toLocaleString('pt-BR') : "Data N/A";
+            // Lógica de Filtro de Data
+            let dataMatch = true;
+            if (filtroData && dataObjeto) {
+                const dataString = dataObjeto.toISOString().split('T')[0]; // Converte para YYYY-MM-DD
+                dataMatch = (dataString === filtroData);
+            }
+
+            // Lógica de Filtro de Tipo
+            const tipoMatch = (filtroTipo === "Todos" || h.tipo === filtroTipo);
+
+            if (dataMatch && tipoMatch) {
+                encontrou = true;
+                const dataFormatada = dataObjeto ? dataObjeto.toLocaleString('pt-BR') : "N/A";
                 
-                let row = `
-                <tr>
-                    <td>${dataFormatada}</td>
-                    <td>${h.usuario || "Sistema"}</td>
-                    <td>${h.produto}</td>
-                    <td class="tipo-${h.tipo.replace(/\s/g, '')}" style="font-weight:bold; color: ${h.tipo === 'Saída' ? 'red' : 'green'}">
-                        ${h.tipo}
-                    </td>
-                    <td>${h.quantidade} un</td>
-                    <td>
-                        <button style="background:#dc3545; color:white; padding:5px; border-radius:4px;" 
-                                onclick="excluirMov('${d.id}')">Excluir</button>
-                    </td>
-                </tr>`;
-                tabela.innerHTML += row;
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${dataFormatada}</td>
+                        <td style="color:#666">${h.usuario || 'Sistema'}</td>
+                        <td style="font-weight:bold">${h.produto}</td>
+                        <td class="tipo-${h.tipo}">${h.tipo}</td>
+                        <td>${h.quantidade !== undefined ? h.quantidade + ' un' : '--'}</td>
+                        <td style="text-align: right;">
+                            <button class="btn-delete" onclick="window.excluirRegistro('${d.id}')">Excluir</button>
+                        </td>
+                    </tr>`;
             }
         });
 
-        if (tabela.innerHTML === "") {
-            tabela.innerHTML = "<tr><td colspan='6'>Nenhum registro encontrado.</td></tr>";
+        if (!encontrou) {
+            tbody.innerHTML = "<tr><td colspan='6' style='text-align:center'>Nenhum registro encontrado para estes filtros.</td></tr>";
         }
 
     } catch (e) {
-        console.error("Erro ao listar histórico: ", e);
-        tabela.innerHTML = "<tr><td colspan='6' style='color:red'>Erro ao carregar dados. Verifique as permissões do Firestore.</td></tr>";
+        console.error(e);
+        tbody.innerHTML = "<tr><td colspan='6' style='color:red'>Erro ao carregar histórico.</td></tr>";
     }
 }
 
-// 3. Função para Excluir Registro (Auditoria)
-window.excluirMov = async (id) => {
-    if (confirm("Tem certeza que deseja remover este registro do histórico?")) {
-        try {
-            await deleteDoc(doc(db, "movimentacoes", id));
-            alert("Registro removido!");
-            listarHistorico();
-        } catch (error) {
-            alert("Erro ao excluir: " + error.message);
-        }
+// --- AÇÕES ---
+window.excluirRegistro = async (id) => {
+    if (confirm("Deseja remover permanentemente este registro do histórico?")) {
+        await deleteDoc(doc(db, "movimentacoes", id));
+        listarHistorico();
     }
 };
 
-// 4. Inicialização
-window.onload = listarHistorico;
-
-// Vincula o evento de mudança do Select de filtro
-const filtroSelect = document.getElementById("filtro");
-if (filtroSelect) {
-    filtroSelect.addEventListener("change", listarHistorico);
-}
+// Eventos de Filtro
+document.getElementById("filtroData").addEventListener("change", listarHistorico);
+document.getElementById("filtroTipo").addEventListener("change", listarHistorico);
+document.getElementById("btnLimpar").onclick = () => {
+    document.getElementById("filtroData").value = "";
+    document.getElementById("filtroTipo").value = "Todos";
+    listarHistorico();
+};
