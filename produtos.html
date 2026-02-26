@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Móveis Simonetti - Gestão de Estoque</title>
+  <title>Móveis Simonetti - Gestão de Assistência</title>
   <style>
     :root {
       --primary: #004a99;
@@ -11,62 +11,57 @@
       --success: #28a745;
       --warning: #f39c12;
       --gray: #6c757d;
-      --light-bg: #f8f9fa;
+      --border-color: #dddddd;
     }
 
     body { background-color: #f4f7f6; margin: 0; font-family: 'Segoe UI', sans-serif; }
 
-    /* Header e Navegação */
+    /* Header */
     .top-nav {
-      background: var(--primary);
-      color: white;
-      padding: 10px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      background: var(--primary); color: white; padding: 10px 20px;
+      display: flex; justify-content: space-between; align-items: center;
     }
     .nav-left { display: flex; align-items: center; gap: 15px; }
     .btn-back { 
       background: rgba(255,255,255,0.2); border: none; color: white; 
-      padding: 8px 15px; border-radius: 4px; cursor: pointer; text-decoration: none;
-      font-size: 18px; display: flex; align-items: center;
+      padding: 5px 12px; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 20px;
     }
-    .btn-back:hover { background: rgba(255,255,255,0.3); }
 
-    /* Painel de Busca (Inspirado no Print) */
-    .search-panel {
-      background: white; margin: 20px; padding: 20px;
-      border-radius: 8px; border: 1px solid #ddd;
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;
+    /* Busca e Cadastro */
+    .search-panel { background: white; margin: 15px 20px; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
+    .cadastro-bar { background: #eee; padding: 15px 20px; display: flex; gap: 10px; align-items: flex-end; border-bottom: 2px solid var(--primary); }
+    .field-group { display: flex; flex-direction: column; gap: 4px; }
+    .field-group label { font-size: 11px; font-weight: bold; color: #444; }
+    .field-group input, .field-group select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+
+    /* Tabela com Linhas Divisórias */
+    .main-content { padding: 0 20px; }
+    table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    th { 
+      background: #f2f2f2; color: #333; padding: 12px; text-align: left; font-size: 12px; 
+      border: 1px solid var(--border-color); /* Linhas traçadas/bordas */
     }
-    .search-panel fieldset { border: 1px dashed #ccc; border-radius: 4px; padding: 10px; }
-    .search-panel legend { font-size: 12px; font-weight: bold; color: var(--gray); }
-    .search-panel input, .search-panel select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-
-    /* Cadastro Rápido */
-    .cadastro-bar { background: #e9ecef; padding: 15px 20px; border-bottom: 2px solid var(--primary); display: flex; gap: 10px; align-items: flex-end; }
-    .field-group { display: flex; flex-direction: column; gap: 5px; }
-    .field-group label { font-size: 11px; font-weight: bold; }
-
-    /* Tabela */
-    .main-content { padding: 0 20px 20px 20px; }
-    table { width: 100%; border-collapse: collapse; background: white; border-radius: 4px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    th { background: #eeeeee; color: #333; padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid #ddd; }
-    td { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+    td { 
+      padding: 10px; border: 1px solid var(--border-color); /* Linhas traçadas/bordas */
+      font-size: 14px; 
+    }
     
-    .row-prod { background: #fff; cursor: pointer; }
-    .row-prod:hover { background: #f1f7ff; }
-    .row-vol { background: #fafafa; display: none; } /* Escondido por padrão */
+    .row-prod { background: #fdfdfd; font-weight: bold; }
+    .row-vol { background: #ffffff; display: none; }
     .row-vol.active { display: table-row; }
-    .indent { padding-left: 40px; color: #666; font-style: italic; }
+    .indent { padding-left: 30px; color: #555; }
 
-    /* Modais e Botões */
-    .modal { display: none; position: fixed; z-index: 1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
-    .modal-content { background:white; padding:25px; border-radius:8px; width:400px; }
-    .btn-action { padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; color: white; font-weight: bold; margin-left: 2px; }
+    /* Botões */
+    .btn-action { 
+        padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; 
+        color: white; font-weight: bold; font-size: 12px; transition: 0.2s;
+    }
+    .btn-action:hover { opacity: 0.8; }
     
-    .status-badge { padding: 2px 6px; border-radius: 10px; font-size: 11px; background: #eee; }
+    /* Modal */
+    .modal { display: none; position: fixed; z-index: 1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
+    .modal-content { background:white; padding:20px; border-radius:8px; width:350px; }
+    .modal-content input { width: 100%; padding: 10px; margin-top: 10px; box-sizing: border-box; }
   </style>
 </head>
 <body>
@@ -74,61 +69,46 @@
   <div class="top-nav">
     <div class="nav-left">
       <a href="dashboard.html" class="btn-back">←</a>
-      <span id="labelUser">Olá, Usuário</span>
+      <span id="labelUser">Olá...</span>
     </div>
-    <div style="font-weight: bold; letter-spacing: 1px;">SISTEMA DE GESTÃO - MÓVEIS SIMONETTI</div>
+    <div style="font-size: 14px; opacity: 0.9;">CONTROLE DE PULMÃO - ASSISTÊNCIA</div>
     <button onclick="logout()" class="btn-action" style="background:var(--danger)">Sair</button>
   </div>
 
   <div class="cadastro-bar">
     <div class="field-group">
-      <label>SKU/CÓD:</label>
-      <input type="text" id="newCod" placeholder="Ex: 319059" style="width: 100px;">
+      <label>CÓDIGO (SKU):</label>
+      <input type="text" id="newCod" placeholder="Ex: 40169700" style="width: 100px;">
     </div>
     <div class="field-group" style="flex-grow: 1;">
-      <label>DESCRIÇÃO DO PRODUTO:</label>
+      <label>DESCRIÇÃO DO PRODUTO (PRINCIPAL):</label>
       <input type="text" id="newNome" placeholder="Ex: ROUPEIRO 2PTS DESLIZ SERENO">
     </div>
     <div class="field-group">
       <label>FORNECEDOR:</label>
-      <select id="selForn" style="width: 200px;"><option value="">Carregando...</option></select>
+      <select id="selForn" style="width: 180px;"><option>Carregando...</option></select>
     </div>
-    <button class="btn-action" id="btnSaveProd" style="background:var(--primary); height: 35px; padding: 0 20px;">CADASTRAR</button>
+    <button class="btn-action" id="btnSaveProd" style="background:var(--primary); height: 36px; padding: 0 15px;">SALVAR</button>
   </div>
 
   <div class="search-panel">
-    <fieldset>
-      <legend>BUSCA RÁPIDA (FILTRO)</legend>
-      <input type="text" id="mainBusca" placeholder="Pesquisar produto, código ou fornecedor..." onkeyup="filtrar()">
-    </fieldset>
+    <input type="text" id="mainBusca" placeholder="🔍 Filtrar por código, produto ou fornecedor..." onkeyup="filtrar()" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
   </div>
 
   <div class="main-content">
     <table id="tblEstoque">
       <thead>
         <tr>
-          <th style="width: 40px;"></th>
+          <th style="width: 30px; text-align: center;">#</th>
           <th>FORNECEDOR</th>
           <th>CÓDIGO</th>
-          <th>DESCRIÇÃO</th>
-          <th style="text-align: center;">QTD TOTAL</th>
-          <th style="text-align: right;">AÇÕES</th>
+          <th>DESCRIÇÃO / VOLUME</th>
+          <th style="width: 80px; text-align: center;">QTD</th>
+          <th style="width: 280px; text-align: right;">AÇÕES</th>
         </tr>
       </thead>
-      <tbody id="corpoTabela">
-        </tbody>
+      <tbody id="corpoTabela"></tbody>
     </table>
-  </div>
-
-  <div id="modalGlobal" class="modal">
-    <div class="modal-content">
-      <h3 id="mTitulo" style="color:var(--primary); margin-top:0">Ação</h3>
-      <div id="mCorpo"></div>
-      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-        <button onclick="fecharModal()" class="btn-action" style="background:var(--gray)">Cancelar</button>
-        <button id="mConfirmar" class="btn-action" style="background:var(--primary)">Confirmar</button>
-      </div>
-    </div>
   </div>
 
   <script type="module" src="js/produtos.js"></script>
