@@ -9,7 +9,7 @@ let fornecedoresCache = {};
 
 onAuthStateChanged(auth, user => {
     if (user) {
-        document.getElementById("labelUser").innerText = `Olá, ${user.email.split('@')[0]}`;
+        document.getElementById("labelUser").innerText = `Olá, ${user.email.split('@')[0].toUpperCase()}`;
         const filtro = localStorage.getItem('filtro_assistencia');
         if(filtro) document.getElementById("mainBusca").value = filtro;
         init();
@@ -54,7 +54,7 @@ async function refresh() {
             <td style="text-align:right">
                 <button class="btn-action" style="background:var(--success)" onclick="window.addVolume('${pId}', '${p.nome}')">+ Volume</button>
                 <button class="btn-action" style="background:var(--warning)" onclick="window.editarItem('${pId}', 'produtos', '${p.nome}')">✎</button>
-                <button class="btn-action" style="background:var(--danger)" onclick="window.deletar('${pId}', 'produtos')">Excluir</button>
+                <button class="btn-action" style="background:var(--danger)" onclick="window.deletar('${pId}', 'produtos', '${p.nome}')">Excluir</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -70,7 +70,7 @@ async function refresh() {
                     <button class="btn-action" style="background:var(--success)" onclick="window.movimentar('${v.id}', '${v.descricao}', 'Entrada')">▲</button>
                     <button class="btn-action" style="background:var(--danger)" onclick="window.movimentar('${v.id}', '${v.descricao}', 'Saída')">▼</button>
                     <button class="btn-action" style="background:var(--warning); margin-left:15px" onclick="window.editarItem('${v.id}', 'volumes', '${v.descricao}')">✎</button>
-                    <button class="btn-action" style="background:var(--gray)" onclick="window.deletar('${v.id}', 'volumes')">✕</button>
+                    <button class="btn-action" style="background:var(--gray)" onclick="window.deletar('${v.id}', 'volumes', '${v.descricao}')">✕</button>
                 </td>
             `;
             tbody.appendChild(trV);
@@ -79,13 +79,24 @@ async function refresh() {
     filtrar();
 }
 
-// --- FUNÇÕES DE EDIÇÃO E MOVIMENTAÇÃO ---
+// --- FUNÇÕES DE EDIÇÃO E MOVIMENTAÇÃO (COM HISTÓRICO) ---
 
 window.editarItem = async (id, tabela, valorAtual) => {
     const novo = prompt("Editar descrição:", valorAtual);
     if (novo && novo !== valorAtual) {
         const campo = tabela === 'produtos' ? 'nome' : 'descricao';
+        
         await updateDoc(doc(db, tabela, id), { [campo]: novo });
+
+        // Regista a Edição no Histórico
+        await addDoc(collection(db, "movimentacoes"), {
+            produto: `Edição: ${valorAtual} -> ${novo}`,
+            tipo: "Edição",
+            quantidade: 0,
+            usuario: auth.currentUser.email,
+            data: serverTimestamp()
+        });
+        
         refresh();
     }
 };
@@ -95,15 +106,21 @@ window.movimentar = async (id, desc, tipo) => {
     if (!q || isNaN(q)) return;
     
     const valor = tipo === 'Entrada' ? parseInt(q) : -parseInt(q);
+    
     await updateDoc(doc(db, "volumes", id), {
         quantidade: increment(valor),
         ultimaMovimentacao: serverTimestamp()
     });
     
+    // Regista a Entrada/Saída no Histórico
     await addDoc(collection(db, "movimentacoes"), {
-        produto: desc, tipo, quantidade: parseInt(q),
-        usuario: auth.currentUser.email, data: serverTimestamp()
+        produto: desc, 
+        tipo, 
+        quantidade: parseInt(q),
+        usuario: auth.currentUser.email, 
+        data: serverTimestamp()
     });
+    
     refresh();
 };
 
@@ -113,13 +130,33 @@ window.addVolume = async (pId, pNome) => {
         await addDoc(collection(db, "volumes"), {
             produtoId: pId, descricao: d, quantidade: 0, ultimaMovimentacao: serverTimestamp()
         });
+        
+        // Regista a Criação do Volume como "Cadastro"
+        await addDoc(collection(db, "movimentacoes"), {
+            produto: `Novo Volume: ${d} em ${pNome}`,
+            tipo: "Entrada",
+            quantidade: 0,
+            usuario: auth.currentUser.email,
+            data: serverTimestamp()
+        });
+
         refresh();
     }
 };
 
-window.deletar = async (id, tabela) => {
-    if(confirm("Deseja realmente excluir? Se for um produto, os volumes não serão apagados automaticamente.")){
+window.deletar = async (id, tabela, descricao) => {
+    if(confirm(`Deseja realmente excluir "${descricao}"?`)){
         await deleteDoc(doc(db, tabela, id));
+        
+        // Regista a Exclusão no Histórico
+        await addDoc(collection(db, "movimentacoes"), {
+            produto: descricao,
+            tipo: "Exclusão",
+            quantidade: 0,
+            usuario: auth.currentUser.email,
+            data: serverTimestamp()
+        });
+
         refresh();
     }
 };
@@ -143,7 +180,23 @@ document.getElementById("btnSaveProd").onclick = async () => {
     const c = document.getElementById("newCod").value;
     const f = document.getElementById("selForn").value;
     if(!n || !f) return alert("Preencha Nome e Fornecedor!");
-    await addDoc(collection(db, "produtos"), { nome: n, codigo: c || "S/C", fornecedorId: f });
+    
+    const docRef = await addDoc(collection(db, "produtos"), { 
+        nome: n, 
+        codigo: c || "S/C", 
+        fornecedorId: f,
+        dataCadastro: serverTimestamp()
+    });
+
+    // Regista o Cadastro do Produto no Histórico
+    await addDoc(collection(db, "movimentacoes"), {
+        produto: `Cadastro: ${n}`,
+        tipo: "Entrada",
+        quantidade: 0,
+        usuario: auth.currentUser.email,
+        data: serverTimestamp()
+    });
+
     location.reload();
 };
 
