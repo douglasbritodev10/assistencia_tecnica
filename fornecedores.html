@@ -2,64 +2,152 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Fornecedores - Simonetti</title>
-    <link rel="stylesheet" href="css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fornecedores - Móveis Simonetti</title>
+    <style>
+        :root {
+            --primary: #004a99;
+            --glass: rgba(255, 255, 255, 0.2);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --danger: #dc3545;
+            --success: #28a745;
+            --warning: #f39c12;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #002d5f 0%, #004a99 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: white;
+        }
+
+        /* Top Bar */
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 25px;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        .nav-left { display: flex; align-items: center; gap: 15px; }
+        .btn-nav {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        /* Form Card */
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+        
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .grid-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .field-group { display: flex; flex-direction: column; gap: 5px; }
+        .field-group label { font-size: 12px; font-weight: bold; text-transform: uppercase; }
+        .field-group input {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255,255,255,0.9);
+            color: #333;
+        }
+
+        /* Table Style */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th { background: #eee; padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid #ddd; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+        
+        .btn-action {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+    </style>
 </head>
 <body>
-    <div class="navbar">
-        <h2>Cadastro de Fornecedores</h2>
-        <button onclick="location.href='dashboard.html'">Voltar</button>
+
+    <div class="top-nav">
+        <div class="nav-left">
+            <a href="dashboard.html" class="btn-nav">← Voltar</a>
+            <span id="labelUser">Olá, Usuário</span>
+        </div>
+        <div style="font-weight: bold;">CADASTRO DE FORNECEDORES</div>
+        <button id="btnLogout" class="btn-nav" style="background: var(--danger)">Sair</button>
     </div>
-    <div class="content">
-        <div style="background: white; padding: 20px; border-radius: 8px;">
-            <h3>Novo Fornecedor</h3>
-            <input type="text" id="nomeF" placeholder="Nome do Fornecedor">
-            <input type="text" id="cnpjF" placeholder="CNPJ">
-            <input type="text" id="emailF" placeholder="E-mail">
-            <input type="text" id="telefoneF" placeholder="Telefone de Contato">
-          
-            <button id="btnSalvarF">Cadastrar</button>
+
+    <div class="container">
+        <div class="glass-panel">
+            <h3 style="margin-top:0">Novo Fornecedor</h3>
+            <div class="grid-form">
+                <div class="field-group">
+                    <label>Nome / Razão Social:</label>
+                    <input type="text" id="nomeF" placeholder="Ex: Móveis Estrela">
+                </div>
+                <div class="field-group">
+                    <label>CNPJ:</label>
+                    <input type="text" id="cnpjF" placeholder="00.000.000/0000-00" maxlength="18">
+                </div>
+                <div class="field-group">
+                    <label>E-mail:</label>
+                    <input type="email" id="emailF" placeholder="contato@fornecedor.com">
+                </div>
+                <div class="field-group">
+                    <label>Telefone:</label>
+                    <input type="text" id="telefoneF" placeholder="(00) 00000-0000" maxlength="15">
+                </div>
+                <button id="btnSalvarF" class="btn-action" style="background: var(--success); height: 40px;">CADASTRAR</button>
+            </div>
         </div>
 
-        <table>
-            <thead>
-                <tr><th>Nome</th><th>CNPJ</th><th>E-mail</th><th>Telefone</th><th>Ações</th></tr>
-            </thead>
-            <tbody id="listaF"></tbody>
-        </table>
+        <div class="glass-panel" style="padding:0; overflow:hidden;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fornecedor</th>
+                        <th>CNPJ</th>
+                        <th>E-mail</th>
+                        <th>Telefone</th>
+                        <th style="text-align: right;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="listaF">
+                    </tbody>
+            </table>
+        </div>
     </div>
 
-    <script type="module">
-        import { db } from "./js/firebase-config.js";
-        import { collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-        const carregar = async () => {
-            const snap = await getDocs(collection(db, "fornecedores"));
-            const tbody = document.getElementById("listaF");;
-            tbody.innerHTML = "";
-            snap.forEach(d => {
-                tbody.innerHTML += `<tr><td>${d.data().nome}</td><td>${d.data().cnpj}</td><td>${d.data().email}</td><td>${d.data().telefone}</td>
-                <td><button style="background:red" onclick="excluirF('${d.id}')">Excluir</button></td></tr>`;
-            });
-        };
-
-        document.getElementById("btnSalvarF").onclick = async () => {
-            await addDoc(collection(db, "fornecedores"), {
-                nome: document.getElementById("nomeF").value,
-                cnpj: document.getElementById("cnpjF").value,
-                email: document.getElementById("emailF").value,
-                telefone: document.getElementById("telefoneF").value
-            });
-            location.reload();
-        };
-
-        window.excluirF = async (id) => {
-            if(confirm("Deseja remover este fornecedor?")) {
-                await deleteDoc(doc(db, "fornecedores", id));
-                location.reload();
-            }
-        };
-        carregar();
-    </script>
+    <script type="module" src="js/fornecedores.js"></script>
 </body>
 </html>
