@@ -1,160 +1,188 @@
 import { db, auth } from "./firebase-config.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import { 
-    collection, 
-    addDoc, 
-    getDocs, 
-    serverTimestamp, 
-    doc, 
-    updateDoc, 
-    increment, 
-    query, 
-    orderBy 
+    collection, addDoc, getDocs, serverTimestamp, doc, 
+    updateDoc, increment, query, orderBy, deleteDoc 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// --- 1. FUNÇÕES DE INICIALIZAÇÃO E LISTAGEM ---
+let idRef = null;
+let fornecedoresCache = {};
 
-async function listarProdutos() {
-    const corpoTabela = document.querySelector("#tabelaProdutos tbody");
-    if (!corpoTabela) return;
-
-    corpoTabela.innerHTML = "<tr><td colspan='4'>Carregando estoque...</td></tr>";
-
-    try {
-        // Busca Produtos e Volumes
-        const prodSnap = await getDocs(query(collection(db, "produtos"), orderBy("nome", "asc")));
-        const volSnap = await getDocs(collection(db, "volumes"));
+// --- INICIALIZAÇÃO ---
+onAuthStateChanged(auth, user => {
+    if (user) {
+        document.getElementById("labelUser").innerText = `Olá, ${user.email.split('@')[0]}`;
         
-        const listaVolumes = volSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        corpoTabela.innerHTML = "";
+        // Recuperar filtro persistente
+        const filtroSalvo = localStorage.getItem('filtro_produtos');
+        if(filtroSalvo) {
+            document.getElementById("mainBusca").value = filtroSalvo;
+        }
 
-        prodSnap.forEach(docP => {
-            const p = docP.data();
-            const idProd = docP.id;
+        loadData();
+    } else {
+        window.location.href = "index.html";
+    }
+});
 
-            // Linha do Produto Principal (Fundo cinza claro)
-            corpoTabela.innerHTML += `
-                <tr style="background-color: #f0f2f5; font-weight: bold;">
-                    <td>[${p.codigo}] ${p.nome}</td>
-                    <td>--</td>
-                    <td>--</td>
-                    <td>
-                        <button onclick="window.abrirModalVolume('${idProd}', '${p.nome}')" style="background:#28a745">+ Volume</button>
-                    </td>
-                </tr>
+async function loadData() {
+    // 1. Carregar Fornecedores
+    const fSnap = await getDocs(collection(db, "fornecedores"));
+    const sel = document.getElementById("selForn");
+    sel.innerHTML = '<option value="">Selecione...</option>';
+    fSnap.forEach(d => {
+        fornecedoresCache[d.id] = d.data().nome;
+        sel.innerHTML += `<option value="${d.id}">${d.data().nome}</option>`;
+    });
+
+    refreshTable();
+}
+
+async function refreshTable() {
+    const tbody = document.getElementById("corpoTabela");
+    const pSnap = await getDocs(query(collection(db, "produtos"), orderBy("nome", "asc")));
+    const vSnap = await getDocs(collection(db, "volumes"));
+    const vols = vSnap.docs.map(d => ({id: d.id, ...d.data()}));
+
+    tbody.innerHTML = "";
+
+    pSnap.forEach(dp => {
+        const p = dp.data();
+        const pId = dp.id;
+        const nomeForn = fornecedoresCache[p.fornecedorId] || "Não definido";
+        
+        // Calcula Qtd Total somando volumes
+        const volumesDesteProd = vols.filter(v => v.produtoId === pId);
+        const qtdTotal = volumesDesteProd.reduce((acc, curr) => acc + curr.quantidade, 0);
+
+        // Linha Principal (Produto/Fornecedor)
+        const tr = document.createElement('tr');
+        tr.className = "row-prod";
+        tr.dataset.txt = `${p.nome} ${p.codigo} ${nomeForn}`.toLowerCase();
+        tr.onclick = (e) => {
+            if(e.target.tagName !== 'BUTTON') toggleVolumes(pId);
+        };
+
+        tr.innerHTML = `
+            <td style="color:var(--primary); font-weight:bold; text-align:center" id="seta-${pId}">▶</td>
+            <td style="font-weight:bold">${nomeForn}</td>
+            <td>${p.codigo}</td>
+            <td>${p.nome}</td>
+            <td style="text-align:center"><strong>${qtdTotal}</strong></td>
+            <td style="text-align:right">
+                <button class="btn-action" style="background:var(--success)" onclick="window.formVol('${pId}', '${p.nome}')">+ Vol</button>
+                <button class="btn-action" style="background:var(--danger)" onclick="window.excluirItem('${pId}', 'produtos')">Excluir</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+
+        // Linhas de Volumes (Filhos)
+        volumesDesteProd.forEach(v => {
+            const trV = document.createElement('tr');
+            trV.className = `row-vol child-${pId}`;
+            trV.innerHTML = `
+                <td></td>
+                <td colspan="3" class="indent">↳ ${v.descricao}</td>
+                <td style="text-align:center">${v.quantidade}</td>
+                <td style="text-align:right">
+                    <button class="btn-action" style="background:var(--primary)" onclick="window.giro('${v.id}', '${v.descricao}', 'Entrada')">▲</button>
+                    <button class="btn-action" style="background:var(--danger)" onclick="window.giro('${v.id}', '${v.descricao}', 'Saída')">▼</button>
+                    <button class="btn-action" style="background:var(--warning)" onclick="window.excluirItem('${v.id}', 'volumes')">🗑</button>
+                </td>
             `;
-
-            // Filtra e exibe os volumes vinculados a este produto
-            const volumesFiltrados = listaVolumes.filter(v => v.produtoId === idProd);
-
-            volumesFiltrados.forEach(v => {
-                const dias = calcularDiasParado(v.ultimaMovimentacao);
-                const classeStatus = dias > 30 ? 'status-ocioso' : 'status-bom';
-
-                corpoTabela.innerHTML += `
-                    <tr class="sub-item">
-                        <td class="indent">↳ ${v.descricao}</td>
-                        <td><strong>${v.quantidade}</strong> un</td>
-                        <td class="${classeStatus}">${dias} dias em estoque</td>
-                        <td>
-                            <button onclick="window.movimentarVolume('${v.id}', '${v.descricao}', 'Entrada')" style="background:#007bff; padding:5px">▲</button>
-                            <button onclick="window.movimentarVolume('${v.id}', '${v.descricao}', 'Saída')" style="background:#dc3545; padding:5px">▼ Saída</button>
-                        </td>
-                    </tr>
-                `;
-            });
+            tbody.appendChild(trV);
         });
-
-    } catch (e) {
-        console.error("Erro ao listar:", e);
-        corpoTabela.innerHTML = "<tr><td colspan='4'>Erro ao carregar dados.</td></tr>";
-    }
+    });
+    
+    // Aplica o filtro após carregar
+    filtrar();
 }
 
-// --- 2. FUNÇÕES DE CADASTRO ---
+// --- FUNÇÕES DE INTERAÇÃO ---
 
-window.salvarProduto = async () => {
-    const nome = document.getElementById("nome").value;
-    const cod = document.getElementById("cod").value;
-    const fornecedorId = document.getElementById("selectFornecedor").value;
-
-    if (!nome || !fornecedorId) {
-        alert("Nome e Fornecedor são obrigatórios!");
-        return;
-    }
-
-    try {
-        await addDoc(collection(db, "produtos"), {
-            nome,
-            codigo: cod || "S/C",
-            fornecedorId,
-            dataCadastro: serverTimestamp()
-        });
-        alert("Produto cadastrado!");
-        location.reload();
-    } catch (e) {
-        alert("Erro ao salvar: " + e.message);
-    }
+window.toggleVolumes = (pId) => {
+    const vols = document.querySelectorAll(`.child-${pId}`);
+    const seta = document.getElementById(`seta-${pId}`);
+    vols.forEach(v => v.classList.toggle('active'));
+    seta.innerText = seta.innerText === '▶' ? '▼' : '▶';
 };
 
-window.abrirModalVolume = async (idProd, nomeProd) => {
-    const desc = prompt(`Qual a descrição do volume para ${nomeProd}? (Ex: Volume 1/2 - Tampo)`);
-    const qtd = prompt(`Quantidade inicial em estoque:`);
+window.filtrar = () => {
+    const t = document.getElementById("mainBusca").value.toLowerCase();
+    localStorage.setItem('filtro_produtos', t); // Persistência
 
-    if (desc && qtd) {
-        await addDoc(collection(db, "volumes"), {
-            produtoId: idProd,
-            descricao: desc,
-            quantidade: parseInt(qtd),
-            ultimaMovimentacao: serverTimestamp()
-        });
-        alert("Volume adicionado ao pulmão!");
-        listarProdutos();
-    }
+    document.querySelectorAll(".row-prod").forEach(rp => {
+        const txt = rp.dataset.txt;
+        rp.style.display = txt.includes(t) ? "" : "none";
+    });
 };
 
-// --- 3. MOVIMENTAÇÃO DE ESTOQUE (GIRO AUTOMÁTICO) ---
+// --- CADASTRO ---
 
-window.movimentarVolume = async (idVol, descVol, tipo) => {
-    const qtd = prompt(`Quantidade de ${tipo}:`);
-    if (!qtd || isNaN(qtd)) return;
+document.getElementById("btnSaveProd").onclick = async () => {
+    const n = document.getElementById("newNome").value;
+    const c = document.getElementById("newCod").value;
+    const f = document.getElementById("selForn").value;
+    
+    if(!n || !f) return alert("Nome e Fornecedor obrigatórios!");
 
-    try {
-        const volRef = doc(db, "volumes", idVol);
-        const valorAjuste = tipo === "Saída" ? -parseInt(qtd) : parseInt(qtd);
-
-        // Atualiza o estoque no Volume
-        await updateDoc(volRef, {
-            quantidade: increment(valorAjuste),
-            ultimaMovimentacao: serverTimestamp()
-        });
-
-        // GRAVA AUTOMATICAMENTE NO HISTÓRICO DE GIRO
-        await addDoc(collection(db, "movimentacoes"), {
-            produto: descVol,
-            tipo: tipo,
-            quantidade: parseInt(qtd),
-            usuario: auth.currentUser.email,
-            data: serverTimestamp()
-        });
-
-        alert(`${tipo} realizada com sucesso!`);
-        listarProdutos();
-    } catch (e) {
-        alert("Erro na movimentação: " + e.message);
-    }
+    await addDoc(collection(db, "produtos"), {
+        nome: n, codigo: c || "S/C",
+        fornecedorId: f, dataCadastro: serverTimestamp()
+    });
+    
+    document.getElementById("newNome").value = "";
+    document.getElementById("newCod").value = "";
+    refreshTable();
 };
 
-// --- 4. UTILITÁRIOS ---
+// --- MOVIMENTAÇÃO (GIRO) ---
 
-function calcularDiasParado(timestamp) {
-    if (!timestamp) return 0;
-    const dataMov = timestamp.toDate();
-    const hoje = new Date();
-    const diff = Math.floor((hoje - dataMov) / (1000 * 60 * 60 * 24));
-    return diff;
+window.giro = (id, desc, tipo) => {
+    const qtd = prompt(`Quantidade de ${tipo} para: ${desc}`);
+    if(!qtd || isNaN(qtd)) return;
+
+    realizarMovimentacao(id, desc, tipo, parseInt(qtd));
+};
+
+async function realizarMovimentacao(id, desc, tipo, qtd) {
+    const valor = tipo === 'Saída' ? -qtd : qtd;
+    await updateDoc(doc(db, "volumes", id), {
+        quantidade: increment(valor),
+        ultimaMovimentacao: serverTimestamp()
+    });
+
+    await addDoc(collection(db, "movimentacoes"), {
+        produto: desc, tipo, quantidade: qtd, 
+        usuario: auth.currentUser.email, data: serverTimestamp()
+    });
+    refreshTable();
 }
 
-// Inicialização ao carregar a página
-window.onload = () => {
-    listarProdutos();
+// --- NOVO VOLUME ---
+
+window.formVol = (pId, pNom) => {
+    const d = prompt(`Descrição do volume para ${pNom}:`);
+    const q = prompt(`Quantidade inicial:`, "1");
+
+    if(d && q) {
+        addDoc(collection(db, "volumes"), {
+            produtoId: pId,
+            descricao: d,
+            quantidade: parseInt(q),
+            ultimaMovimentacao: serverTimestamp()
+        }).then(() => refreshTable());
+    }
 };
+
+// --- EXCLUSÃO ---
+
+window.excluirItem = async (id, tabela) => {
+    if(confirm("Tem certeza que deseja excluir? Esta ação não pode ser desfeita.")){
+        await deleteDoc(doc(db, tabela, id));
+        refreshTable();
+    }
+};
+
+// --- AUXILIARES ---
+window.logout = () => signOut(auth).then(() => window.location.href = "index.html");
