@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Simonetti</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <h2>Móveis Simonetti - Assistência</h2>
+        <button id="btnLogout">Sair</button>
+    </div>
+    <div class="content" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+        <button onclick="location.href='produtos.html'" style="height: 150px; font-size: 1.2em;">📦 Gestão de Estoque / Pulmão</button>
+        <button onclick="location.href='fornecedores.html'" style="height: 150px; font-size: 1.2em; background: #28a745;">🏭 Cadastrar Fornecedores</button>
+        <button onclick="location.href='historico.html'" style="height: 150px; font-size: 1.2em; background: #6c757d;">📜 Histórico de Giro</button>
+    </div>
+
+    <script type="module">
+        import { auth } from "./js/firebase-config.js";
+        document.getElementById("btnLogout").onclick = () => {
+            auth.signOut().then(() => window.location.href = "index.html");
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Histórico de Giro - Simonetti</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Cores específicas para o tipo de giro */
+    .tipo-Entrada { color: #28a745; font-weight: bold; }
+    .tipo-Saída { color: #dc3545; font-weight: bold; }
+    .tipo-Exclusão { color: #6c757d; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <h2>Histórico de Movimentações (Giro)</h2>
+    <div>
+      <a href="dashboard.html"><button style="background: #6c757d;">Voltar ao Painel</button></a>
+      <button onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+      <label for="filtro"><strong>Filtrar por tipo:</strong></label>
+      <select id="filtro" style="width: auto; margin-left: 10px;">
+        <option value="Todos">Todos os Registos</option>
+        <option value="Entrada">Entradas</option>
+        <option value="Saída">Saídas (Giro)</option>
+        <option value="Exclusão">Exclusões</option>
+      </select>
+    </div>
+
+    <table id="tabelaHistorico">
+      <thead>
+        <tr>
+          <th>Data/Hora</th>
+          <th>Operador</th>
+          <th>Produto/Volume</th>
+          <th>Tipo</th>
+          <th>Quantidade</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        </tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    import { db, auth } from "./js/firebase-config.js";
+    import { collection, query, orderBy, getDocs, deleteDoc, doc, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+    // Proteção de Rota
+    onAuthStateChanged(auth, (user) => {
+        if (!user) window.location.href = "index.html";
+    });
+
+    async function listarHistorico() {
+      const filtro = document.getElementById("filtro").value;
+      const tbody = document.querySelector("#tabelaHistorico tbody");
+      tbody.innerHTML = "<tr><td colspan='6'>A carregar histórico...</td></tr>";
+
+      try {
+        // Busca as movimentações ordenadas pela data mais recente
+        const q = query(collection(db, "movimentacoes"), orderBy("data", "desc"));
+        const snap = await getDocs(q);
+        
+        tbody.innerHTML = "";
+
+        snap.forEach((d) => {
+          const h = d.data();
+          
+          if (filtro === "Todos" || h.tipo === filtro) {
+            const dataFormatada = h.data ? h.data.toDate().toLocaleString('pt-BR') : "Data N/A";
+            
+            tbody.innerHTML += `
+              <tr>
+                <td>${dataFormatada}</td>
+                <td>${h.usuario || 'Sistema'}</td>
+                <td>${h.produto}</td>
+                <td class="tipo-${h.tipo}">${h.tipo}</td>
+                <td>${h.quantidade} un</td>
+                <td>
+                  <button style="background:#dc3545; padding: 5px 10px; font-size: 12px;" 
+                          onclick="excluirRegisto('${d.id}')">Eliminar</button>
+                </td>
+              </tr>`;
+          }
+        });
+
+        if (tbody.innerHTML === "") {
+          tbody.innerHTML = "<tr><td colspan='6'>Nenhuma movimentação encontrada.</td></tr>";
+        }
+      } catch (e) {
+        console.error("Erro ao carregar histórico: ", e);
+        tbody.innerHTML = "<tr><td colspan='6' style='color:red'>Erro ao carregar dados. Verifique as permissões.</td></tr>";
+      }
+    }
+
+    // Função global para excluir registo
+    window.excluirRegisto = async (id) => {
+      if (confirm("Deseja eliminar este registo permanentemente do histórico?")) {
+        await deleteDoc(doc(db, "movimentacoes", id));
+        listarHistorico();
+      }
+    };
+
+    window.logout = () => {
+      signOut(auth).then(() => window.location.href = "index.html");
+    };
+
+    // Eventos
+    document.getElementById("filtro").addEventListener("change", listarHistorico);
+    window.onload = listarHistorico;
+  </script>
+</body>
+</html>

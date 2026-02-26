@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Fornecedores - Simonetti</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <h2>Cadastro de Fornecedores</h2>
+        <button onclick="location.href='dashboard.html'">Voltar</button>
+    </div>
+    <div class="content">
+        <div style="background: white; padding: 20px; border-radius: 8px;">
+            <h3>Novo Fornecedor</h3>
+            <input type="text" id="nomeF" placeholder="Nome do Fornecedor">
+            <input type="text" id="cnpjF" placeholder="CNPJ">
+            <input type="text" id="emailF" placeholder="E-mail">
+            <input type="text" id="telefoneF" placeholder="Telefone de Contato">
+          
+            <button id="btnSalvarF">Cadastrar</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr><th>Nome</th><th>CNPJ</th><th>E-mail</th><th>Telefone</th><th>Ações</th></tr>
+            </thead>
+            <tbody id="listaF"></tbody>
+        </table>
+    </div>
+
+    <script type="module">
+        import { db } from "./js/firebase-config.js";
+        import { collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        const carregar = async () => {
+            const snap = await getDocs(collection(db, "fornecedores"));
+            const tbody = document.getElementById("listaF");;
+            tbody.innerHTML = "";
+            snap.forEach(d => {
+                tbody.innerHTML += `<tr><td>${d.data().nome}</td><td>${d.data().cnpj}</td><td>${d.data().email}</td><td>${d.data().telefone}</td>
+                <td><button style="background:red" onclick="excluirF('${d.id}')">Excluir</button></td></tr>`;
+            });
+        };
+
+        document.getElementById("btnSalvarF").onclick = async () => {
+            await addDoc(collection(db, "fornecedores"), {
+                nome: document.getElementById("nomeF").value,
+                cnpj: document.getElementById("cnpjF").value,
+                email: document.getElementById("emailF").value,
+                telefone: document.getElementById("telefoneF").value
+            });
+            location.reload();
+        };
+
+        window.excluirF = async (id) => {
+            if(confirm("Deseja remover este fornecedor?")) {
+                await deleteDoc(doc(db, "fornecedores", id));
+                location.reload();
+            }
+        };
+        carregar();
+    </script>
+</body>
+</html>
