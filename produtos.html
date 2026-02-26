@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simonetti - Gestão de Pulmão</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>Móveis Simonetti - Gestão de Estoque</title>
   <style>
     :root {
       --primary: #004a99;
@@ -12,294 +11,126 @@
       --success: #28a745;
       --warning: #f39c12;
       --gray: #6c757d;
+      --light-bg: #f8f9fa;
     }
 
-    body { background-color: #f4f7f6; margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { background-color: #f4f7f6; margin: 0; font-family: 'Segoe UI', sans-serif; }
 
-    /* Título Grande e Elegante */
-    .header-site {
-      text-align: center;
-      padding: 30px 0 10px 0;
-      background: linear-gradient(135deg, #004a99 0%, #002d5f 100%);
+    /* Header e Navegação */
+    .top-nav {
+      background: var(--primary);
       color: white;
-      margin-bottom: 0;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
-    .header-site h1 { 
-      margin: 0; font-size: 2.5rem; letter-spacing: 2px; text-transform: uppercase; 
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    .nav-left { display: flex; align-items: center; gap: 15px; }
+    .btn-back { 
+      background: rgba(255,255,255,0.2); border: none; color: white; 
+      padding: 8px 15px; border-radius: 4px; cursor: pointer; text-decoration: none;
+      font-size: 18px; display: flex; align-items: center;
     }
-    .header-site p { margin: 5px 0; opacity: 0.8; font-style: italic; }
+    .btn-back:hover { background: rgba(255,255,255,0.3); }
 
-    /* Navbar Compacta */
-    .navbar {
-      display: flex; justify-content: space-between; align-items: center;
-      background: #fff; padding: 10px 25px; border-bottom: 1px solid #ddd;
+    /* Painel de Busca (Inspirado no Print) */
+    .search-panel {
+      background: white; margin: 20px; padding: 20px;
+      border-radius: 8px; border: 1px solid #ddd;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;
     }
-    .user-info { display: flex; align-items: center; gap: 15px; color: var(--primary); font-weight: 600; }
+    .search-panel fieldset { border: 1px dashed #ccc; border-radius: 4px; padding: 10px; }
+    .search-panel legend { font-size: 12px; font-weight: bold; color: var(--gray); }
+    .search-panel input, .search-panel select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
 
-    /* Barra de Cadastro Ultra Compacta */
-    .cadastro-bar {
-      background: #fff; padding: 10px 25px; border-bottom: 2px solid var(--primary);
-      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-    }
-    .cadastro-bar div { display: flex; align-items: center; gap: 8px; }
-    .cadastro-bar input, .cadastro-bar select { 
-      padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; 
-    }
-    .btn-save-top { background: var(--primary); color: white; border: none; padding: 7px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    /* Cadastro Rápido */
+    .cadastro-bar { background: #e9ecef; padding: 15px 20px; border-bottom: 2px solid var(--primary); display: flex; gap: 10px; align-items: flex-end; }
+    .field-group { display: flex; flex-direction: column; gap: 5px; }
+    .field-group label { font-size: 11px; font-weight: bold; }
 
-    /* Conteúdo e Tabela */
-    .main-content { padding: 20px; max-width: 1400px; margin: auto; }
-    .search-row { margin-bottom: 15px; }
-    .search-row input { width: 100%; padding: 12px 20px; border-radius: 25px; border: 1px solid #ccc; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
-
-    table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    th { background: #f8f9fa; color: var(--primary); padding: 12px; text-align: left; font-size: 13px; text-transform: uppercase; border-bottom: 2px solid #eee; }
-    td { padding: 10px 12px; border-bottom: 1px solid #f1f1f1; font-size: 14px; }
-
-    .row-prod { background: #fafafa; font-weight: bold; color: #333; }
-    .indent { padding-left: 35px; color: #666; }
+    /* Tabela */
+    .main-content { padding: 0 20px 20px 20px; }
+    table { width: 100%; border-collapse: collapse; background: white; border-radius: 4px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    th { background: #eeeeee; color: #333; padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid #ddd; }
+    td { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 14px; }
     
-    /* Modais Estilizados */
-    .modal {
-      display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center;
-    }
-    .modal-content {
-      background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 420px; 
-      box-shadow: 0 15px 40px rgba(0,0,0,0.4); animation: modalAnim 0.3s ease;
-    }
-    @keyframes modalAnim { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    .modal-header { margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
-    .modal-header h3 { margin: 0; color: var(--primary); }
-    .modal-body label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #444; }
-    .modal-body input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+    .row-prod { background: #fff; cursor: pointer; }
+    .row-prod:hover { background: #f1f7ff; }
+    .row-vol { background: #fafafa; display: none; } /* Escondido por padrão */
+    .row-vol.active { display: table-row; }
+    .indent { padding-left: 40px; color: #666; font-style: italic; }
 
-    .btn-action { padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 11px; margin-left: 3px; }
+    /* Modais e Botões */
+    .modal { display: none; position: fixed; z-index: 1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
+    .modal-content { background:white; padding:25px; border-radius:8px; width:400px; }
+    .btn-action { padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; color: white; font-weight: bold; margin-left: 2px; }
     
-    @media (max-width: 800px) { .cadastro-bar { flex-direction: column; align-items: stretch; } }
+    .status-badge { padding: 2px 6px; border-radius: 10px; font-size: 11px; background: #eee; }
   </style>
 </head>
 <body>
 
-  <div class="header-site">
-    <h1>Móveis Simonetti</h1>
-    <p>Gestão de Estoque e Pulmão de Assistência</p>
-  </div>
-
-  <div class="navbar">
-    <div class="user-info">
-      <a href="dashboard.html"><button class="btn-action" style="background:var(--gray); padding: 8px 15px; font-size:13px;">← Painel</button></a>
-      <span id="labelUser">Carregando...</span>
+  <div class="top-nav">
+    <div class="nav-left">
+      <a href="dashboard.html" class="btn-back">←</a>
+      <span id="labelUser">Olá, Usuário</span>
     </div>
-    <button onclick="logout()" class="btn-action" style="background:var(--danger); padding: 8px 15px; font-size:13px;">Sair do Sistema</button>
+    <div style="font-weight: bold; letter-spacing: 1px;">SISTEMA DE GESTÃO - MÓVEIS SIMONETTI</div>
+    <button onclick="logout()" class="btn-action" style="background:var(--danger)">Sair</button>
   </div>
 
   <div class="cadastro-bar">
-    <div>
-      <label style="font-size: 12px; font-weight: bold;">SKU:</label>
-      <input type="text" id="newCod" placeholder="G-101" style="width: 80px;">
+    <div class="field-group">
+      <label>SKU/CÓD:</label>
+      <input type="text" id="newCod" placeholder="Ex: 319059" style="width: 100px;">
     </div>
-    <div style="flex-grow: 1;">
-      <label style="font-size: 12px; font-weight: bold;">PRODUTO:</label>
-      <input type="text" id="newNome" placeholder="Descrição do produto principal" style="flex-grow: 1;">
+    <div class="field-group" style="flex-grow: 1;">
+      <label>DESCRIÇÃO DO PRODUTO:</label>
+      <input type="text" id="newNome" placeholder="Ex: ROUPEIRO 2PTS DESLIZ SERENO">
     </div>
-    <div>
-      <label style="font-size: 12px; font-weight: bold;">FORNECEDOR:</label>
-      <select id="selForn"><option value="">Aguarde...</option></select>
+    <div class="field-group">
+      <label>FORNECEDOR:</label>
+      <select id="selForn" style="width: 200px;"><option value="">Carregando...</option></select>
     </div>
-    <button class="btn-save-top" id="btnSaveProd">Cadastrar</button>
+    <button class="btn-action" id="btnSaveProd" style="background:var(--primary); height: 35px; padding: 0 20px;">CADASTRAR</button>
+  </div>
+
+  <div class="search-panel">
+    <fieldset>
+      <legend>BUSCA RÁPIDA (FILTRO)</legend>
+      <input type="text" id="mainBusca" placeholder="Pesquisar produto, código ou fornecedor..." onkeyup="filtrar()">
+    </fieldset>
   </div>
 
   <div class="main-content">
-    <div class="search-row">
-      <input type="text" id="mainBusca" placeholder="🔍 Digite para buscar produtos ou volumes específicos..." onkeyup="filtrar()">
-    </div>
-
     <table id="tblEstoque">
       <thead>
         <tr>
-          <th>Item / Descrição</th>
-          <th style="width: 80px; text-align: center;">Qtd</th>
-          <th style="width: 140px; text-align: center;">Status</th>
-          <th style="width: 250px; text-align: right;">Ações</th>
+          <th style="width: 40px;"></th>
+          <th>FORNECEDOR</th>
+          <th>CÓDIGO</th>
+          <th>DESCRIÇÃO</th>
+          <th style="text-align: center;">QTD TOTAL</th>
+          <th style="text-align: right;">AÇÕES</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody id="corpoTabela">
+        </tbody>
     </table>
   </div>
 
   <div id="modalGlobal" class="modal">
     <div class="modal-content">
-      <div class="modal-header"><h3 id="mTitulo">Ação</h3></div>
-      <div class="modal-body" id="mCorpo"></div>
-      <div class="modal-footer">
-        <button onclick="fecharModal()" class="btn-action" style="background:var(--gray); padding: 10px 20px;">Cancelar</button>
-        <button id="mConfirmar" class="btn-action" style="background:var(--primary); padding: 10px 20px;">Confirmar</button>
+      <h3 id="mTitulo" style="color:var(--primary); margin-top:0">Ação</h3>
+      <div id="mCorpo"></div>
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+        <button onclick="fecharModal()" class="btn-action" style="background:var(--gray)">Cancelar</button>
+        <button id="mConfirmar" class="btn-action" style="background:var(--primary)">Confirmar</button>
       </div>
     </div>
   </div>
 
-  <script type="module">
-    import { db, auth } from "./js/firebase-config.js";
-    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { collection, addDoc, getDocs, serverTimestamp, doc, updateDoc, increment, query, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-    let idRef = null;
-
-    onAuthStateChanged(auth, user => {
-      if (user) {
-        document.getElementById("labelUser").innerText = `Olá, ${user.email.split('@')[0]}`;
-        refresh();
-        loadForn();
-      } else { window.location.href = "index.html"; }
-    });
-
-    async function loadForn() {
-      const s = await getDocs(collection(db, "fornecedores"));
-      const sel = document.getElementById("selForn");
-      sel.innerHTML = '<option value="">Selecione...</option>';
-      s.forEach(d => sel.innerHTML += `<option value="${d.id}">${d.data().nome}</option>`);
-    }
-
-    document.getElementById("btnSaveProd").onclick = async () => {
-      const n = document.getElementById("newNome").value;
-      const f = document.getElementById("selForn").value;
-      if(!n || !f) return alert("Preencha o nome e fornecedor!");
-      await addDoc(collection(db, "produtos"), {
-        nome: n, codigo: document.getElementById("newCod").value || "S/C",
-        fornecedorId: f, dataCadastro: serverTimestamp()
-      });
-      location.reload();
-    };
-
-    async function refresh() {
-      const tbody = document.querySelector("#tblEstoque tbody");
-      const pSnap = await getDocs(query(collection(db, "produtos"), orderBy("nome", "asc")));
-      const vSnap = await getDocs(collection(db, "volumes"));
-      const vols = vSnap.docs.map(d => ({id: d.id, ...d.data()}));
-
-      tbody.innerHTML = "";
-      pSnap.forEach(dp => {
-        const p = dp.data();
-        tbody.innerHTML += `
-          <tr class="row-prod" data-txt="${p.nome.toLowerCase()} ${p.codigo.toLowerCase()}">
-            <td>${p.codigo} - ${p.nome}</td>
-            <td colspan="2"></td>
-            <td style="text-align:right">
-              <button class="btn-action" style="background:var(--success)" onclick="window.formVol('${dp.id}', '${p.nome}')">Incluir Volume</button>
-              <button class="btn-action" style="background:var(--warning)" onclick="window.editProd('${dp.id}', '${p.nome}', '${p.codigo}')">Editar</button>
-            </td>
-          </tr>`;
-
-        vols.filter(v => v.produtoId === dp.id).forEach(v => {
-          tbody.innerHTML += `
-            <tr class="row-vol" data-vol="${v.descricao.toLowerCase()}">
-              <td class="indent">↳ ${v.descricao}</td>
-              <td style="text-align:center"><strong>${v.quantidade}</strong></td>
-              <td style="text-align:center"><small>${v.ultimaMovimentacao ? 'Em giro' : 'Novo'}</small></td>
-              <td style="text-align:right">
-                <button class="btn-action" style="background:var(--primary)" onclick="window.giro('${v.id}', '${v.descricao}', 'Entrada')">▲</button>
-                <button class="btn-action" style="background:var(--danger)" onclick="window.giro('${v.id}', '${v.descricao}', 'Saída')">▼ Saída</button>
-                <button class="btn-action" style="background:var(--warning)" onclick="window.editVol('${v.id}', '${v.descricao}')">✎</button>
-              </td>
-            </tr>`;
-        });
-      });
-    }
-
-    // --- MODAIS PADRONIZADOS ---
-
-    window.giro = (id, desc, tipo) => {
-      idRef = id;
-      document.getElementById("mTitulo").innerText = `${tipo}: ${desc}`;
-      document.getElementById("mCorpo").innerHTML = `
-        <label>Quantidade da Movimentação:</label>
-        <input type="number" id="qMov" placeholder="0" autofocus>
-      `;
-      document.getElementById("mConfirmar").onclick = async () => {
-        const q = parseInt(document.getElementById("qMov").value);
-        if(!q) return;
-        await updateDoc(doc(db, "volumes", idRef), { 
-          quantidade: increment(tipo === 'Saída' ? -q : q), 
-          ultimaMovimentacao: serverTimestamp() 
-        });
-        await addDoc(collection(db, "movimentacoes"), { 
-          produto: desc, tipo, quantidade: q, usuario: auth.currentUser.email, data: serverTimestamp() 
-        });
-        fecharModal(); refresh();
-      };
-      abrirModal();
-    };
-
-    window.editProd = (id, nome, cod) => {
-      idRef = id;
-      document.getElementById("mTitulo").innerText = `Editar Produto`;
-      document.getElementById("mCorpo").innerHTML = `
-        <label>Código SKU:</label><input type="text" id="eCod" value="${cod}">
-        <label>Descrição do Produto:</label><input type="text" id="eNom" value="${nome}">
-      `;
-      document.getElementById("mConfirmar").onclick = async () => {
-        await updateDoc(doc(db, "produtos", idRef), { 
-          nome: document.getElementById("eNom").value, 
-          codigo: document.getElementById("eCod").value 
-        });
-        fecharModal(); refresh();
-      };
-      abrirModal();
-    };
-
-    window.editVol = (id, desc) => {
-      idRef = id;
-      document.getElementById("mTitulo").innerText = `Editar Volume`;
-      document.getElementById("mCorpo").innerHTML = `
-        <label>Descrição do Volume:</label><input type="text" id="eDes" value="${desc}">
-      `;
-      document.getElementById("mConfirmar").onclick = async () => {
-        await updateDoc(doc(db, "volumes", idRef), { descricao: document.getElementById("eDes").value });
-        fecharModal(); refresh();
-      };
-      abrirModal();
-    };
-
-    window.formVol = (pId, pNom) => {
-      idRef = pId;
-      document.getElementById("mTitulo").innerText = `Novo Volume em ${pNom}`;
-      document.getElementById("mCorpo").innerHTML = `
-        <label>Identificação do Volume:</label><input type="text" id="vD" placeholder="Ex: Volume 1/2 - Lateral">
-        <label>Quantidade Inicial:</label><input type="number" id="vQ" value="1">
-      `;
-      document.getElementById("mConfirmar").onclick = async () => {
-        const d = document.getElementById("vD").value;
-        const q = parseInt(document.getElementById("vQ").value);
-        if(d && q) {
-          await addDoc(collection(db, "volumes"), { produtoId: idRef, descricao: d, quantidade: q, ultimaMovimentacao: serverTimestamp() });
-          fecharModal(); refresh();
-        }
-      };
-      abrirModal();
-    };
-
-    window.filtrar = () => {
-      const t = document.getElementById("mainBusca").value.toLowerCase();
-      document.querySelectorAll(".row-prod").forEach(rp => {
-        const txtP = rp.getAttribute("data-txt");
-        let vVis = false;
-        let prox = rp.nextElementSibling;
-        while(prox && prox.classList.contains("row-vol")) {
-          const txtV = prox.getAttribute("data-vol");
-          if(txtV.includes(t) || txtP.includes(t)) { prox.style.display = ""; vVis = true; }
-          else { prox.style.display = "none"; }
-          prox = prox.nextElementSibling;
-        }
-        rp.style.display = (txtP.includes(t) || vVis) ? "" : "none";
-      });
-    };
-
-    const abrirModal = () => document.getElementById("modalGlobal").style.display = "flex";
-    window.fecharModal = () => document.getElementById("modalGlobal").style.display = "none";
-    window.logout = () => signOut(auth).then(() => window.location.href = "index.html");
-  </script>
+  <script type="module" src="js/produtos.js"></script>
 </body>
 </html>
