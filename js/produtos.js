@@ -15,7 +15,6 @@ onAuthStateChanged(auth, user => {
 });
 
 async function init() {
-    // Busca fornecedores em ordem de A-Z
     const fSnap = await getDocs(query(collection(db, "fornecedores"), orderBy("nome", "asc")));
     const selCadastro = document.getElementById("selForn");
     const selFiltro = document.getElementById("filtroForn");
@@ -30,7 +29,6 @@ async function init() {
         selFiltro.innerHTML += `<option value="${nome}">${nome}</option>`;
     });
 
-    // Recupera filtros individuais para não perder ao recarregar
     document.getElementById("filtroCod").value = localStorage.getItem('f_assist_cod') || "";
     document.getElementById("filtroForn").value = localStorage.getItem('f_assist_forn') || "";
     document.getElementById("filtroDesc").value = localStorage.getItem('f_assist_desc') || "";
@@ -51,24 +49,31 @@ async function refresh() {
         const pId = dp.id;
         const nForn = fornecedoresCache[p.fornecedorId] || "---";
         const vDesteProd = vols.filter(v => v.produtoId === pId);
-        const qtdTotal = vDesteProd.reduce((acc, curr) => acc + curr.quantidade, 0);
+        
+        // --- LÓGICA DE AGRUPAMENTO (PARA NÃO GERAR LINHAS DUPLICADAS) ---
+        const grupos = {};
+        vDesteProd.forEach(v => {
+            if (!grupos[v.descricao]) {
+                grupos[v.descricao] = { total: 0, idReferencia: v.id };
+            }
+            grupos[v.descricao].total += v.quantidade;
+        });
 
-        // String para busca avançada (inclui nomes dos volumes no pai)
-        const nomesVolumes = vDesteProd.map(v => v.descricao).join(" ").toLowerCase();
+        const qtdTotalGeral = vDesteProd.reduce((acc, curr) => acc + curr.quantidade, 0);
+        const nomesVolumesBusca = Object.keys(grupos).join(" ").toLowerCase();
 
         const tr = document.createElement('tr');
         tr.className = "row-prod";
-        // Armazena dados para o filtro cascata
         tr.dataset.cod = (p.codigo || "").toLowerCase();
         tr.dataset.forn = nForn;
-        tr.dataset.desc = `${p.nome} ${nomesVolumes}`.toLowerCase();
+        tr.dataset.desc = `${p.nome} ${nomesVolumesBusca}`.toLowerCase();
         
         tr.innerHTML = `
             <td style="text-align:center; cursor:pointer; color:var(--primary)" onclick="window.toggleVols('${pId}')">▼</td>
             <td>${nForn}</td>
             <td>${p.codigo}</td>
             <td>${p.nome}</td>
-            <td style="text-align:center"><strong>${qtdTotal}</strong></td>
+            <td style="text-align:center"><strong>${qtdTotalGeral}</strong></td>
             <td style="text-align:right">
                 <button class="btn-action" style="background:var(--success)" onclick="window.addVolume('${pId}', '${p.nome}')">+ Volume</button>
                 <button class="btn-action" style="background:var(--warning)" onclick="window.editarItem('${pId}', 'produtos', '${p.nome}')">✎</button>
@@ -77,18 +82,20 @@ async function refresh() {
         `;
         tbody.appendChild(tr);
 
-        vDesteProd.forEach(v => {
+        // Renderiza os volumes somados/agrupados
+        Object.keys(grupos).forEach(desc => {
             const trV = document.createElement('tr');
-            trV.className = `row-vol child-${pId}`; // Removido 'active' para vir fechado por padrão
+            trV.className = `row-vol child-${pId}`;
+            
             trV.innerHTML = `
                 <td></td>
-                <td colspan="3" class="indent">↳ ${v.descricao}</td>
-                <td style="text-align:center; font-weight:bold;">${v.quantidade}</td>
+                <td colspan="3" class="indent">↳ ${desc}</td>
+                <td style="text-align:center; font-weight:bold;">${grupos[desc].total}</td>
                 <td style="text-align:right">
-                    <button class="btn-action" style="background:var(--success)" onclick="window.movimentar('${v.id}', '${v.descricao}', 'Entrada')">▲</button>
-                    <button class="btn-action" style="background:var(--danger)" onclick="window.movimentar('${v.id}', '${v.descricao}', 'Saída')">▼</button>
-                    <button class="btn-action" style="background:var(--warning); margin-left:15px" onclick="window.editarItem('${v.id}', 'volumes', '${v.descricao}')">✎</button>
-                    <button class="btn-action" style="background:var(--gray)" onclick="window.deletar('${v.id}', 'volumes', '${v.descricao}')">✕</button>
+                    <button class="btn-action" style="background:var(--success)" onclick="window.entradaLote('${pId}', '${desc}')">▲</button>
+                    <button class="btn-action" style="background:var(--danger)" onclick="window.saidaAgrupada('${pId}', '${desc}')">▼</button>
+                    <button class="btn-action" style="background:var(--warning); margin-left:15px" onclick="window.editarItem('${grupos[desc].idReferencia}', 'volumes', '${desc}')">✎</button>
+                    <button class="btn-action" style="background:var(--gray)" onclick="window.deletarLote('${pId}', '${desc}')">✕</button>
                 </td>
             `;
             tbody.appendChild(trV);
@@ -97,12 +104,70 @@ async function refresh() {
     window.filtrar();
 }
 
+// ENTRADA: Cria um novo registro sem endereço (Cai nos pendentes do estoque)
+window.entradaLote = async (pId, desc) => {
+    const q = prompt(`Quantidade de ENTRADA para (${desc}):`, "1");
+    if (!q || isNaN(q) || parseInt(q) <= 0) return;
+
+    await addDoc(collection(db, "volumes"), { 
+        produtoId: pId, 
+        descricao: desc, 
+        quantidade: parseInt(q), 
+        enderecoId: "", 
+        ultimaMovimentacao: serverTimestamp() 
+    });
+
+    await addDoc(collection(db, "movimentacoes"), {
+        produto: desc, tipo: "Entrada", quantidade: parseInt(q), usuario: auth.currentUser.email, data: serverTimestamp()
+    });
+    refresh();
+};
+
+// SAÍDA: Abate a quantidade total procurando em todos os endereços onde o item existe
+window.saidaAgrupada = async (pId, desc) => {
+    const qStr = prompt(`Quantidade de SAÍDA para (${desc}):`, "1");
+    if (!qStr || isNaN(qStr)) return;
+    let qtdParaRemover = parseInt(qStr);
+
+    const vSnap = await getDocs(collection(db, "volumes"));
+    const lotes = vSnap.docs
+        .map(d => ({id: d.id, ...d.data()}))
+        .filter(v => v.produtoId === pId && v.descricao === desc && v.quantidade > 0);
+
+    const totalDisponivel = lotes.reduce((acc, cur) => acc + cur.quantidade, 0);
+    if(qtdParaRemover > totalDisponivel) return alert("Estoque insuficiente!");
+
+    for (let lote of lotes) {
+        if (qtdParaRemover <= 0) break;
+        const tirar = Math.min(lote.quantidade, qtdParaRemover);
+        await updateDoc(doc(db, "volumes", lote.id), { 
+            quantidade: increment(-tirar),
+            ultimaMovimentacao: serverTimestamp()
+        });
+        qtdParaRemover -= tirar;
+    }
+
+    await addDoc(collection(db, "movimentacoes"), {
+        produto: desc, tipo: "Saída", quantidade: parseInt(qStr), usuario: auth.currentUser.email, data: serverTimestamp()
+    });
+    refresh();
+};
+
+// EXCLUSÃO: Remove todas as instâncias desse volume para esse produto
+window.deletarLote = async (pId, desc) => {
+    if(confirm(`Excluir permanentemente o volume "${desc}" de todos os locais?`)){
+        const vSnap = await getDocs(collection(db, "volumes"));
+        const alvos = vSnap.docs.filter(d => d.data().produtoId === pId && d.data().descricao === desc);
+        for(let a of alvos) { await deleteDoc(doc(db, "volumes", a.id)); }
+        refresh();
+    }
+};
+
 window.filtrar = () => {
     const fCod = document.getElementById("filtroCod").value.toLowerCase();
     const fForn = document.getElementById("filtroForn").value;
     const fDesc = document.getElementById("filtroDesc").value.toLowerCase();
 
-    // Persiste os valores
     localStorage.setItem('f_assist_cod', fCod);
     localStorage.setItem('f_assist_forn', fForn);
     localStorage.setItem('f_assist_desc', fDesc);
@@ -111,15 +176,7 @@ window.filtrar = () => {
         const matchesCod = rp.dataset.cod.includes(fCod);
         const matchesForn = fForn === "" || rp.dataset.forn === fForn;
         const matchesDesc = rp.dataset.desc.includes(fDesc);
-
-        if (matchesCod && matchesForn && matchesDesc) {
-            rp.style.display = "";
-        } else {
-            rp.style.display = "none";
-            // Fecha os volumes se o pai estiver escondido
-            const pId = rp.querySelector('td').getAttribute('onclick').match(/'([^']+)'/)[1];
-            document.querySelectorAll(`.child-${pId}`).forEach(c => c.classList.remove('active'));
-        }
+        rp.style.display = (matchesCod && matchesForn && matchesDesc) ? "" : "none";
     });
 };
 
@@ -134,50 +191,26 @@ window.toggleVols = (pId) => {
     document.querySelectorAll(`.child-${pId}`).forEach(el => el.classList.toggle('active'));
 };
 
-// --- RESTANTE DAS FUNÇÕES (MOVIMENTAÇÃO, EDIÇÃO, LOGOUT) ---
-// (Mantidas conforme seu original para garantir funcionalidade)
-
 window.editarItem = async (id, tabela, valorAtual) => {
     const novo = prompt("Editar descrição:", valorAtual);
     if (novo && novo !== valorAtual) {
         const campo = tabela === 'produtos' ? 'nome' : 'descricao';
         await updateDoc(doc(db, tabela, id), { [campo]: novo });
-        await addDoc(collection(db, "movimentacoes"), {
-            produto: `Edição: ${valorAtual} -> ${novo}`,
-            tipo: "Edição", quantidade: 0, usuario: auth.currentUser.email, data: serverTimestamp()
-        });
         refresh();
     }
 };
 
-window.movimentar = async (id, desc, tipo) => {
-    const q = prompt(`Quantidade de ${tipo} (${desc}):`, "1");
-    if (!q || isNaN(q)) return;
-    const valor = tipo === 'Entrada' ? parseInt(q) : -parseInt(q);
-    await updateDoc(doc(db, "volumes", id), { quantidade: increment(valor), ultimaMovimentacao: serverTimestamp() });
-    await addDoc(collection(db, "movimentacoes"), {
-        produto: desc, tipo, quantidade: parseInt(q), usuario: auth.currentUser.email, data: serverTimestamp()
-    });
-    refresh();
-};
-
 window.addVolume = async (pId, pNome) => {
-    const d = prompt(`Nome do Volume para ${pNome}: (Ex: Lateral Direita)`);
+    const d = prompt(`Novo Volume para ${pNome}:`);
     if(d) {
         await addDoc(collection(db, "volumes"), { produtoId: pId, descricao: d, quantidade: 0, ultimaMovimentacao: serverTimestamp() });
-        await addDoc(collection(db, "movimentacoes"), {
-            produto: `Novo Volume: ${d} em ${pNome}`, tipo: "Entrada", quantidade: 0, usuario: auth.currentUser.email, data: serverTimestamp()
-        });
         refresh();
     }
 };
 
 window.deletar = async (id, tabela, descricao) => {
-    if(confirm(`Deseja realmente excluir "${descricao}"?`)){
+    if(confirm(`Excluir "${descricao}"?`)){
         await deleteDoc(doc(db, tabela, id));
-        await addDoc(collection(db, "movimentacoes"), {
-            produto: descricao, tipo: "Exclusão", quantidade: 0, usuario: auth.currentUser.email, data: serverTimestamp()
-        });
         refresh();
     }
 };
@@ -188,9 +221,6 @@ document.getElementById("btnSaveProd").onclick = async () => {
     const f = document.getElementById("selForn").value;
     if(!n || !f) return alert("Preencha Nome e Fornecedor!");
     await addDoc(collection(db, "produtos"), { nome: n, codigo: c || "S/C", fornecedorId: f, dataCadastro: serverTimestamp() });
-    await addDoc(collection(db, "movimentacoes"), {
-        produto: `Cadastro: ${n}`, tipo: "Entrada", quantidade: 0, usuario: auth.currentUser.email, data: serverTimestamp()
-    });
     location.reload();
 };
 
